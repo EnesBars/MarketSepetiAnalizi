@@ -1,6 +1,8 @@
-import numpy as np # linear algebra
-import pandas as pd # data processing, CSV file I/O (e.g. pd.read_csv)
-import os
+import pandas as pd
+from mlxtend.frequent_patterns import apriori, association_rules
+import matplotlib.pyplot as plt
+import seaborn as sns
+
 
 dataset_path = './input/Data.xlsx'
 df = pd.read_excel(dataset_path)
@@ -14,20 +16,19 @@ print("\nFirst few rows of the dataset:")
 print(df.head())
 
 
-
-#Check Missing Values
+# Check Missing Values
 print("Missing Values:")
 print(df.isnull().sum())
 
-#Drop Rows with Missing Values
+# Drop Rows with Missing Values
 df.dropna(inplace=True)
 
 
-
 # Convert dataframe into transaction data
-transaction_data = df.groupby(['BillNo', 'Date'])['Itemname'].apply(lambda x: ', '.join(x)).reset_index()
+transaction_data = df.groupby(['BillNo', 'Date'])['Itemname'].apply(
+    lambda x: ', '.join(x)).reset_index()
 
-#Drop Unnecessary Columns
+# Drop Unnecessary Columns
 columns_to_drop = ['BillNo', 'Date']
 transaction_data.drop(columns=columns_to_drop, inplace=True)
 
@@ -55,9 +56,9 @@ transaction_data = transaction_data.drop('Itemname', axis=1)
 print(transaction_data.head())
 
 
-
 # Convert items to boolean columns
-df_encoded = pd.get_dummies(transaction_data, prefix='', prefix_sep='').T.groupby(level=0).max().T
+df_encoded = pd.get_dummies(
+    transaction_data, prefix='', prefix_sep='').T.groupby(level=0).max().T
 
 # Save the transaction data to a CSV file
 df_encoded.to_csv('./output/transaction_data_encoded.csv', index=False)
@@ -66,12 +67,22 @@ df_encoded.to_csv('./output/transaction_data_encoded.csv', index=False)
 # Load transaction data into a DataFrame
 df_encoded = pd.read_csv('./output/transaction_data_encoded.csv')
 
-from mlxtend.frequent_patterns import apriori, association_rules
-
 # Association Rule Mining
 frequent_itemsets = apriori(df_encoded, min_support=0.007, use_colnames=True)
-rules = association_rules(frequent_itemsets, metric="confidence", min_threshold=0.5)
+rules = association_rules(
+    frequent_itemsets, metric="confidence", min_threshold=0.5)
 
 # Display information of the rules
 print("Association Rules:")
 print(rules.head())
+
+
+# Plot scatterplot for Support vs. Confidence    TABLE 1
+plt.figure(figsize=(12, 8))
+sns.scatterplot(x="support", y="confidence", size="lift",
+                data=rules, hue="lift", palette="viridis", sizes=(20, 200))
+plt.title('Market Basket Analysis - Support vs. Confidence (Size = Lift)')
+plt.xlabel('Support')
+plt.ylabel('Confidence')
+plt.legend(title='Lift', loc='upper right', bbox_to_anchor=(1.2, 1))
+plt.show()
